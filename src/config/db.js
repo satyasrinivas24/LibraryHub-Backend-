@@ -1,5 +1,30 @@
+const path = require('path');
 const { Sequelize } = require('sequelize');
-require('dotenv').config();
+
+// Ensure .env is loaded reliably regardless of current working directory.
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
+
+// When deploying to platforms like Render, the database URL is provided via DATABASE_URL.
+// Fall back to individual vars (DB_NAME, DB_USER, etc.) if DATABASE_URL is not set.
+if (process.env.DATABASE_URL) {
+  module.exports = new Sequelize(process.env.DATABASE_URL, {
+    dialect: 'postgres',
+    logging: process.env.NODE_ENV === 'development' ? console.log : false,
+    dialectOptions: {
+      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+    },
+  });
+  return;
+}
+
+const requiredVars = ['DB_NAME', 'DB_USER', 'DB_PASS', 'DB_HOST', 'DB_PORT'];
+const missing = requiredVars.filter((key) => !process.env[key]);
+if (missing.length) {
+  throw new Error(
+    `Missing required environment variables: ${missing.join(', ')}. ` +
+      'Ensure your .env file exists and is loaded (e.g. run from the backend folder).'
+  );
+}
 
 const sequelize = new Sequelize(
   process.env.DB_NAME,
@@ -20,3 +45,7 @@ const sequelize = new Sequelize(
 );
 
 module.exports = sequelize;
+
+
+
+
